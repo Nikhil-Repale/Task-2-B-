@@ -36,5 +36,5 @@ spec:
     - name: frontend
       port: 80
       targetPort: 3000
-      nodePort: 30080
+      nodePort: 30097
   type: NodePort
