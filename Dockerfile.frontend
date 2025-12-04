@@ -5,27 +5,25 @@ FROM node:16-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files (lock file optional)
+# Copy only package files
 COPY frontend/package.json ./
 COPY frontend/package-lock.json* ./
 
-# Install dependencies CLEANLY
+# Clean install (critical)
 RUN npm install --legacy-peer-deps
 
-# Copy full frontend source code
+# Copy source code
 COPY frontend/ ./
 
-# Build CRA project
+# Build (CRA → uses build/)
 RUN npm run build
 
 # ============================
-# 2. Production Stage (NGINX)
+# 2. Serve Stage
 # ============================
 FROM nginx:alpine
 
-# Copy build output
 COPY --from=builder /app/build /usr/share/nginx/html
 
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
