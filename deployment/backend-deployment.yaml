@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hr-backend
+  namespace: smart-hr
   labels:
     app: hr-backend
 spec:
@@ -16,23 +17,24 @@ spec:
     spec:
       containers:
       - name: hr-backend
-        image: <YOUR_DOCKERHUB>/hr-backend:latest
+        image: nikhil2202/hr-backend:latest
         ports:
-        - containerPort: 4000
+          - containerPort: 4000
         env:
-        - name: MONGODB_URI
-          value: "mongodb://<MONGO_HOST>:27017/hrdb"
+          - name: MONGODB_URI
+            value: "mongodb://mongo:27017/hrdb"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: hr-backend-service
+  namespace: smart-hr
 spec:
   selector:
     app: hr-backend
   ports:
     - name: backend
-      port: 4000          # Service port
-      targetPort: 4000    # Container port
-      nodePort: 30081     # NodePort (external access)
+      port: 4000
+      targetPort: 4000
+      nodePort: 30081
   type: NodePort
