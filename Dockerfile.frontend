@@ -1,29 +1,33 @@
 # ============================
-# 1. Build Stage (Node 16)
+# 1. BUILD STAGE
 # ============================
 FROM node:16-alpine AS builder
-
 WORKDIR /app
 
-# Copy only package files
+# Copy only package.json (since package-lock.json does not exist)
 COPY frontend/package.json ./
-COPY frontend/package-lock.json* ./
 
-# Clean install (critical)
+# Install dependencies (compatible with CRA5 / react-scripts)
 RUN npm install --legacy-peer-deps
 
-# Copy source code
+# Copy full frontend code
 COPY frontend/ ./
 
-# Build (CRA → uses build/)
+# Build React App
 RUN npm run build
 
 # ============================
-# 2. Serve Stage
+# 2. NGINX SERVE STAGE
 # ============================
 FROM nginx:alpine
+WORKDIR /usr/share/nginx/html
 
-COPY --from=builder /app/build /usr/share/nginx/html
+# Clean default nginx html files
+RUN rm -rf ./*
+
+# Copy build result
+COPY --from=builder /app/build ./
 
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]
