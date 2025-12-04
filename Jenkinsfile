@@ -2,6 +2,9 @@ pipeline {
     agent any
 
     environment {
+        // Disable BuildKit to prevent caching issues ONLY FOR THIS PIPELINE
+        DOCKER_BUILDKIT = "0"
+
         GIT_CRED          = 'demo_cred'
         DOCKER_CRED       = 'docker_cred_1'
         KUBECONFIG_CRED   = 'kubeconfig-cred'
@@ -25,10 +28,6 @@ pipeline {
                 sh '''
                     echo "Cleaning workspace..."
                     rm -rf hr_repo
-
-                    echo "Removing old Docker images..."
-                    docker images | grep hr-frontend | awk '{print $3}' | xargs -r docker rmi -f || true
-                    docker images | grep hr-backend | awk '{print $3}' | xargs -r docker rmi -f || true
                 '''
             }
         }
@@ -67,11 +66,15 @@ pipeline {
             steps {
                 dir('hr_repo') {
                     sh '''
-                        echo "Building frontend image..."
-                        docker build -t ${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} -f Dockerfile.frontend .
+                        echo "Building frontend image WITHOUT CACHE..."
+                        docker build --no-cache --pull \
+                            -t ${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} \
+                            -f Dockerfile.frontend .
 
                         echo "Building backend image..."
-                        docker build -t ${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} -f Dockerfile.backend .
+                        docker build --pull \
+                            -t ${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} \
+                            -f Dockerfile.backend .
                     '''
                 }
             }
