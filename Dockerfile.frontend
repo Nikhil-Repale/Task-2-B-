@@ -1,33 +1,20 @@
-# ============================
-# 1. BUILD STAGE (Node 20)
-# ============================
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-# Copy only package.json (you do NOT have package-lock.json)
-COPY frontend/package.json .
-
-# Install dependencies
+# copy package only
+COPY frontend/package.json ./
+# install deps
 RUN npm install --legacy-peer-deps
 
-# Copy the rest of the frontend code
-COPY frontend/ .
+# ensure the older ajv that provides the missing file is present
+RUN npm install ajv@6.12.6 --no-audit --no-fund --legacy-peer-deps
 
-# Build the React app (NOW WORKS)
+# copy source and build
+COPY frontend/ ./
 RUN npm run build
 
-# ============================
-# 2. SERVE WITH NGINX
-# ============================
 FROM nginx:alpine
-
-# Remove default nginx web content
 RUN rm -rf /usr/share/nginx/html/*
-
-# Copy React build output
 COPY --from=builder /app/build /usr/share/nginx/html
-
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
