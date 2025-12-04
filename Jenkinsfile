@@ -101,12 +101,14 @@ pipeline {
                         sh '''
                             echo "Deploying to Kubernetes..."
 
-                            echo "$KUBECONFIG_BASE64" | base64 -d > kubeconfig.yaml
+                            echo "$KUBECONFIG_BASE4" | base64 -d > kubeconfig.yaml
                             export KUBECONFIG=kubeconfig.yaml
 
-                            kubectl apply -n ${K8S_NAMESPACE} -f backend.yaml
-                            kubectl apply -n ${K8S_NAMESPACE} -f frontend.yaml
+                            # Apply manifests (correct file names)
+                            kubectl apply -n ${K8S_NAMESPACE} -f backend-deployment.yaml
+                            kubectl apply -n ${K8S_NAMESPACE} -f frontend-deployment.yaml
 
+                            # Update images in deployments
                             kubectl -n ${K8S_NAMESPACE} set image deployment/hr-backend \
                                 hr-backend=${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} --record
 
