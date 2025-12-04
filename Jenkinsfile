@@ -1,130 +1,107 @@
 pipeline {
     agent any
 
-    environment {
-        GIT_CRED          = 'demo_cred'
-        DOCKER_CRED       = 'docker_cred_1'
-        KUBECONFIG_CRED   = 'kubeconfig-cred'
-
-        REPO_URL          = 'https://github.com/Nikhil-Repale/smart-hr-portal.git'
-        BRANCH            = 'main'
-
-        DOCKER_USER       = 'nikhil2202'
-
-        FRONTEND_IMAGE    = 'hr-frontend'
-        BACKEND_IMAGE     = 'hr-backend'
-        IMAGE_TAG         = "${BUILD_NUMBER}"
-
-        K8S_NAMESPACE     = 'smart-hr'
-    }
-
     stages {
-
-        stage('Cleanup') {
-            steps {
-                sh '''
-                    echo "Cleaning workspace..."
-                    rm -rf hr_repo
-
-                    echo "Removing old Docker images..."
-                    docker images | grep hr-frontend | awk '{print $3}' | xargs -r docker rmi -f || true
-                    docker images | grep hr-backend | awk '{print $3}' | xargs -r docker rmi -f || true
-                '''
-            }
-        }
 
         stage('Clone Repository') {
             steps {
-                dir('hr_repo') {
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: "*/${BRANCH}"]],
-                        userRemoteConfigs: [[
-                            url: "${REPO_URL}",
-                            credentialsId: GIT_CRED
-                        ]]
-                    ])
-                }
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/Nikhil-Repale/smart-hr-portal.git',
+                        credentialsId: 'demo_cred'
+                    ]]
+                ])
             }
         }
 
         stage('Docker Login') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: DOCKER_CRED,
+                    credentialsId: 'docker_cred_1',
                     usernameVariable: 'DUSER',
                     passwordVariable: 'DPASS'
                 )]) {
                     sh '''
-                        echo "Docker Login..."
+                        echo "Logging into Docker Hub..."
                         echo "$DPASS" | docker login -u "$DUSER" --password-stdin
                     '''
                 }
             }
         }
 
-        stage('Build Docker Images') {
-            steps {
-                dir('hr_repo') {
-                    sh '''
-                        echo "Building frontend image..."
-                        docker build -t ${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} -f Dockerfile.frontend .
-
-                        echo "Building backend image..."
-                        docker build -t ${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} -f Dockerfile.backend .
-                    '''
-                }
-            }
-        }
-
-        stage('Push Images') {
+        stage('Build Backend Image') {
             steps {
                 sh '''
-                    echo "Pushing images to Docker Hub..."
-                    docker push ${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG}
-                    docker push ${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG}
+                    echo "Building Backend Image..."
+                    docker build -t nikhil2202/hr-backend:${BUILD_NUMBER} -f Dockerfile.backend .
                 '''
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Push Backend Image') {
             steps {
-                withCredentials([string(
-                    credentialsId: KUBECONFIG_CRED,
-                    variable: 'KUBECONFIG_BASE64'
-                )]) {
+                sh '''
+                    echo "Pushing Backend Image..."
+                    docker push nikhil2202/hr-backend:${BUILD_NUMBER}
+                '''
+            }
+        }
 
-                    dir('hr_repo/deployment') {
-                        sh '''
-                            echo "Deploying to Kubernetes..."
+        stage('Deploy Backend') {
+            steps {
+                sh '''
+                    echo "Deploying Backend to Kubernetes..."
+                    kubectl apply -f deployment/backend.yaml
 
-                            echo "$KUBECONFIG_BASE64" | base64 -d > kubeconfig.yaml
-                            export KUBECONFIG=kubeconfig.yaml
+                    kubectl -n smart-hr set image deployment/hr-backend \
+                    hr-backend=nikhil2202/hr-backend:${BUILD_NUMBER}
+                '''
+            }
+        }
 
-                            kubectl apply -n ${K8S_NAMESPACE} -f backend.yaml
-                            kubectl apply -n ${K8S_NAMESPACE} -f frontend.yaml
+        stage('Build Frontend Image') {
+            steps {
+                sh '''
+                    echo "Building Frontend Image..."
+                    docker build -t nikhil2202/hr-frontend:${BUILD_NUMBER} -f Dockerfile.frontend .
+                '''
+            }
+        }
 
-                            kubectl -n ${K8S_NAMESPACE} set image deployment/hr-backend \
-                                hr-backend=${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} --record
+        stage('Push Frontend Image') {
+            steps {
+                sh '''
+                    echo "Pushing Frontend Image..."
+                    docker push nikhil2202/hr-frontend:${BUILD_NUMBER}
+                '''
+            }
+        }
 
-                            kubectl -n ${K8S_NAMESPACE} set image deployment/hr-frontend \
-                                hr-frontend=${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} --record
-                        '''
-                    }
-                }
+        stage('Deploy Frontend') {
+            steps {
+                sh '''
+                    echo "Deploying Frontend to Kubernetes..."
+                    kubectl apply -f deployment/frontend.yaml
+
+                    kubectl -n smart-hr set image deployment/hr-frontend \
+                    hr-frontend=nikhil2202/hr-frontend:${BUILD_NUMBER}
+                '''
             }
         }
     }
 
     post {
-        success {
-            echo "Deployment successful."
-        }
-        failure {
-            echo "Pipeline failed. Check logs."
-        }
         always {
             sh "rm -f ~/.netrc || true"
+            echo "Pipeline cleanup completed."
+        }
+        success {
+            echo "Build & Deployment Successful."
+        }
+        failure {
+            echo "Pipeline Failed. Check logs."
         }
     }
 }
