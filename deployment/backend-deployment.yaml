@@ -36,5 +36,5 @@ spec:
     - name: backend
       port: 4000
       targetPort: 4000
-      nodePort: 30081
+      nodePort: 30096
   type: NodePort
