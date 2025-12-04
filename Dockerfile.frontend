@@ -5,27 +5,25 @@ FROM node:16-alpine AS builder
 
 WORKDIR /app
 
-# Copy only package files
+# Copy package files
 COPY frontend/package*.json ./
 
-# Install deps (CRA NEEDS this for Node 16)
+# Install dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy source code
+# Copy the full project
 COPY frontend/ ./
 
-# Build React App (this will now work)
+# Build the project (CRA → creates /build folder)
 RUN npm run build
 
 # ============================
-# 2. NGINX Serve Stage
+# 2. Serve Stage (nginx)
 # ============================
 FROM nginx:alpine AS runner
 
-WORKDIR /usr/share/nginx/html
-
-# Copy built files
-COPY --from=builder /app/build ./
+# Copy the CRA build output
+COPY --from=builder /app/build /usr/share/nginx/html
 
 EXPOSE 80
 
