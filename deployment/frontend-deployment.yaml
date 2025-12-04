@@ -18,10 +18,10 @@ spec:
       - name: hr-frontend
         image: <YOUR_DOCKERHUB>/hr-frontend:latest
         ports:
-        - containerPort: 3000
+          - containerPort: 3000
         env:
-        - name: REACT_APP_API_URL
-          value: "http://hr-backend-service:4000"
+          - name: REACT_APP_API_URL
+            value: "http://hr-backend-service:4000"
 ---
 apiVersion: v1
 kind: Service
@@ -32,7 +32,7 @@ spec:
     app: hr-frontend
   ports:
     - name: frontend
-      port: 80              # service port
-      targetPort: 3000      # container port
-      nodePort: 30080       # public port
+      port: 80          # service port
+      targetPort: 3000  # container port
+      nodePort: 30080   # external port for browser
   type: NodePort
