@@ -68,10 +68,10 @@ pipeline {
                 dir('hr_repo') {
                     sh '''
                         echo "Building frontend image..."
-                        docker build -t ${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} -f frontend/Dockerfile.frontend .
+                        docker build -t ${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} -f Dockerfile.frontend .
 
                         echo "Building backend image..."
-                        docker build -t ${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} -f backend/Dockerfile.backend .
+                        docker build -t ${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} -f Dockerfile.backend .
                     '''
                 }
             }
@@ -101,11 +101,9 @@ pipeline {
                             echo "$KUBECONFIG_BASE64" | base64 -d > kubeconfig.yaml
                             export KUBECONFIG=kubeconfig.yaml
 
-                            # Apply manifests
                             kubectl apply -n ${K8S_NAMESPACE} -f backend.yaml
                             kubectl apply -n ${K8S_NAMESPACE} -f frontend.yaml
 
-                            # Update images in running deployments
                             kubectl -n ${K8S_NAMESPACE} set image deployment/hr-backend \
                                 hr-backend=${DOCKER_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} --record
 
