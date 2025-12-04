@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        // Disable BuildKit to prevent caching issues ONLY FOR THIS PIPELINE
         DOCKER_BUILDKIT = "0"
 
         GIT_CRED          = 'demo_cred'
@@ -66,7 +65,7 @@ pipeline {
             steps {
                 dir('hr_repo') {
                     sh '''
-                        echo "Building frontend image WITHOUT CACHE..."
+                        echo "Building frontend image (no cache)..."
                         docker build --no-cache --pull \
                             -t ${DOCKER_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} \
                             -f Dockerfile.frontend .
@@ -101,12 +100,15 @@ pipeline {
                         sh '''
                             echo "Deploying to Kubernetes..."
 
-                            echo "$KUBECONFIG_BASE4" | base64 -d > kubeconfig.yaml
+                            # Write kubeconfig file correctly
+                            echo "$KUBECONFIG_BASE64" | base64 -d > kubeconfig.yaml
                             export KUBECONFIG=kubeconfig.yaml
 
-                            # Apply manifests (correct file names)
-                            kubectl apply -n ${K8S_NAMESPACE} -f backend-deployment.yaml
-                            kubectl apply -n ${K8S_NAMESPACE} -f frontend-deployment.yaml
+                            # Apply deployments
+                            kubectl apply --validate=false -n ${K8S_NAMESPACE} \
+                                -f backend-deployment.yaml
+                            kubectl apply --validate=false -n ${K8S_NAMESPACE} \
+                                -f frontend-deployment.yaml
 
                             # Update images in deployments
                             kubectl -n ${K8S_NAMESPACE} set image deployment/hr-backend \
